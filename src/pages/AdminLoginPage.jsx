@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import MkdSDK from "../utils/MkdSDK";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../authContext";
-
 const AdminLoginPage = () => {
+  const [videos, setVideos] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const schema = yup
     .object({
       email: yup.string().email().required(),
@@ -28,8 +30,59 @@ const AdminLoginPage = () => {
   const onSubmit = async (data) => {
     let sdk = new MkdSDK();
     //TODO
+    try {
+      await sdk.login(data.email, data.password, "admin");
+      const user = await sdk.check("admin");
+      dispatch({ type: "LOGIN_SUCCESS", payload: user });
+      navigate("/dashboard");
+    } catch (error) {
+      setError("email", { message: error.message });
+    }
   };
 
+
+
+  const loadVideos = async (page) => {
+    try {
+      const sdk = new MkdSDK();
+      sdk.setTable("video");
+
+      const payload = {
+        payload: {},
+        page: page,
+        limit: 10,
+      };
+
+      const response = await sdk.callRestAPI(payload, "PAGINATE");
+
+      if (response.error) {
+        // Handle error response
+        console.log("Error:", response.error);
+      } else {
+        // Update video data and pagination
+        setVideos(response.list);
+        setCurrentPage(response.page);
+        setTotalPages(response.num_pages);
+      }
+    } catch (error) {
+      console.log("Error:", error);
+    }
+  };
+
+  useEffect(() => {
+    // Load videos when component mounts
+    loadVideos(currentPage);
+  }, [currentPage]);
+
+  const handleNextPage = () => {
+    // Load next page of videos
+    setCurrentPage((prevPage) => prevPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    // Load previous page of videos
+    setCurrentPage((prevPage) => prevPage - 1);
+  };
   return (
     <div className="w-full max-w-xs mx-auto">
       <form
